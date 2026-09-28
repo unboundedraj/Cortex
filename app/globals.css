@@ -4,25 +4,112 @@
    components/theme-provider.tsx), not the OS color-scheme media query. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Color palette — the only place these values should live. Each theme is a
+ * class block defining the same set of custom properties; :root mirrors
+ * .dark so an unstyled (no-JS) page still gets a sane default matching
+ * ThemeProvider's default theme.
+ *
+ * To add another theme later, add another class block (or a
+ * [data-theme="name"] selector) that defines this same set of properties,
+ * then teach ThemeProvider's Theme union / storage logic about it — nothing
+ * below @theme inline needs to change.
+ */
+:root,
+.dark {
+  color-scheme: dark;
+
+  --background: #0a0a0a;
+  --surface: #141414;
+  --surface-hover: #1e1e1e;
+  --border: #2a2a2a;
+  --foreground: #ededed;
+  --muted: #8a8a8a;
+  --accent: #e5e5e5;
+  --accent-foreground: #0a0a0a;
+  --ring: #e5e5e5;
+  --code-background: #171717;
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+.light {
+  color-scheme: light;
+
+  --background: #f6efdc;
+  --surface: #fbf6ea;
+  --surface-hover: #efe4c8;
+  --border: #ddd0ad;
+  --foreground: #2a2118;
+  --muted: #8a7a5c;
+  --accent: #b8891f;
+  --accent-foreground: #fdf8ee;
+  --ring: #b8891f;
+  --code-background: #efe6cd;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-code-background: var(--code-background);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-orbitron);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  *,
+  *::before,
+  *::after {
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease,
+      color 200ms ease,
+      fill 200ms ease,
+      stroke 200ms ease;
+  }
+}
+
 body {
+  @apply bg-background text-foreground font-sans;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--background);
+}
+
+/* WebKit / Blink */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
   background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border: 3px solid var(--background);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
 }
