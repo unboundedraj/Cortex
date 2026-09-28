@@ -16,11 +16,11 @@ export function ThemeToggle() {
       title={label}
       className="border-border bg-surface text-foreground hover:bg-surface-hover inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors"
     >
-      {/* ThemeProvider resolves the real theme from the anti-flash script's
-          class during hydration, so this can briefly differ from the
-          server-rendered default — suppress the (harmless) mismatch warning
-          rather than delaying the icon behind a mount effect. */}
-      <span suppressHydrationWarning className="inline-flex">
+      {/* ThemeProvider always starts at the coded default, matching the
+          server exactly, then corrects to the real theme post-mount — so
+          this can briefly swap icons right after load if the visitor's
+          saved theme differs, but it never hydration-mismatches. */}
+      <span className="inline-flex">
         {isDark ? (
           <Sun className="h-4 w-4" aria-hidden="true" />
         ) : (
