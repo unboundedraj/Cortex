@@ -4,6 +4,7 @@ import { Ellipsis, Folder, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { memo, useId, useRef, useState } from "react";
 import { useDismiss } from "@/lib/hooks";
+import { rememberListNavigation } from "@/lib/list-navigation";
 import { formatNoteDate } from "@/lib/note-filter";
 import { notebookDisplayPath } from "@/lib/notebook-tree";
 import { noteEditHref, noteHref } from "@/lib/routes";
@@ -59,7 +60,12 @@ function MobileActionsMenu({
           id={menuId}
           className="animate-fade-in bg-surface border-border absolute top-full right-0 mt-1 w-44 rounded-xl border p-1 shadow-xl"
         >
-          <Link href={noteEditHref(note.id)} prefetch={false} className={item}>
+          <Link
+            href={noteEditHref(note.id)}
+            prefetch={false}
+            onClick={() => rememberListNavigation(noteEditHref(note.id))}
+            className={item}
+          >
             <Pencil className="h-4 w-4" aria-hidden="true" />
             Edit
           </Link>
@@ -118,6 +124,7 @@ function NoteBarImpl({
             )}
             <Link
               href={noteHref(note.id)}
+              onClick={() => rememberListNavigation(noteHref(note.id))}
               className="stretched-link truncate font-medium"
             >
               {note.title}
@@ -179,6 +186,7 @@ function NoteBarImpl({
           <Link
             href={noteEditHref(note.id)}
             prefetch={false}
+            onClick={() => rememberListNavigation(noteEditHref(note.id))}
             aria-label={`Edit ${note.title}`}
             title="Edit"
             className={iconButton}

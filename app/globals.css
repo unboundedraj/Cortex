@@ -31,23 +31,54 @@
   --code-background: #efe6cd;
   --danger: #a8321f;
   --danger-foreground: #fdf8ee;
+
+  /* Syntax highlighting — all ≥4.5:1 against --code-background. */
+  --hl-comment: #6b5c40;
+  --hl-keyword: #8b3a62;
+  --hl-string: #4d6a1f;
+  --hl-number: #9a4a12;
+  --hl-function: #1f5d8c;
+  --hl-type: #7a5200;
+  --hl-variable: #8a3324;
+  --hl-attr: #2c6868;
+  --hl-meta: #6b5f47;
+  --hl-tag: #8b3a62;
+  --hl-addition: #4d6a1f;
+  --hl-deletion: #a8321f;
 }
 
-.dark {
-  color-scheme: dark;
+/* Screen-only: printing always uses the light palette above (plus the
+   print overrides near the end of this file), whatever the theme. */
+@media screen {
+  .dark {
+    color-scheme: dark;
 
-  --background: #0a0a0a;
-  --surface: #141414;
-  --surface-hover: #1e1e1e;
-  --border: #2a2a2a;
-  --foreground: #ededed;
-  --muted: #8a8a8a;
-  --accent: #e5e5e5;
-  --accent-foreground: #0a0a0a;
-  --ring: #e5e5e5;
-  --code-background: #171717;
-  --danger: #e5484d;
-  --danger-foreground: #0a0a0a;
+    --background: #0a0a0a;
+    --surface: #141414;
+    --surface-hover: #1e1e1e;
+    --border: #2a2a2a;
+    --foreground: #ededed;
+    --muted: #8a8a8a;
+    --accent: #e5e5e5;
+    --accent-foreground: #0a0a0a;
+    --ring: #e5e5e5;
+    --code-background: #171717;
+    --danger: #e5484d;
+    --danger-foreground: #0a0a0a;
+
+    --hl-comment: #8b8b8b;
+    --hl-keyword: #c6a0f6;
+    --hl-string: #a6da95;
+    --hl-number: #f5a97f;
+    --hl-function: #8aadf4;
+    --hl-type: #eed49f;
+    --hl-variable: #ee99a0;
+    --hl-attr: #8bd5ca;
+    --hl-meta: #a5adcb;
+    --hl-tag: #ed8796;
+    --hl-addition: #a6da95;
+    --hl-deletion: #ed8796;
+  }
 }
 
 @theme inline {
@@ -288,4 +319,459 @@ html[data-entered="true"] .landing-overlay {
 input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* ------------------------------------------------------------------------
+ * Note view — reading layout
+ * --------------------------------------------------------------------- */
+
+.note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
+}
+
+.note-column {
+  width: 100%;
+  max-width: 72ch;
+  min-width: 0;
+  margin-inline: auto;
+  font-size: 1.0625rem;
+}
+
+.note-toc {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .note-layout.has-toc {
+    grid-template-columns: minmax(0, 72ch) 14rem;
+    column-gap: 3.5rem;
+  }
+
+  .note-layout.has-toc .note-column {
+    margin-inline: 0;
+  }
+
+  .note-toc {
+    display: block;
+    position: sticky;
+    top: 6rem;
+    align-self: start;
+    max-height: calc(100dvh - 8rem);
+    overflow-y: auto;
+    padding-top: 7rem;
+  }
+}
+
+/* ------------------------------------------------------------------------
+ * Markdown typography — semantic tokens only.
+ * --------------------------------------------------------------------- */
+
+.markdown-body {
+  --mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  color: var(--foreground);
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body :is(p, ul, ol, blockquote, hr, .code-block, .table-scroll) {
+  margin: 0 0 1.25em;
+}
+
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin: 2em 0 0.65em;
+  scroll-margin-top: 5.5rem;
+}
+
+.markdown-body h1 {
+  font-size: 1.9em;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+  margin-top: 1.75em;
+}
+
+.markdown-body h4 {
+  font-size: 1.1em;
+  margin-top: 1.5em;
+}
+
+.markdown-body h5 {
+  font-size: 1em;
+  margin-top: 1.5em;
+}
+
+.markdown-body h6 {
+  font-size: 0.85em;
+  margin-top: 1.5em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Headings are wrapped in self-links by rehype-autolink-headings. */
+.markdown-body :is(h1, h2, h3, h4, h5, h6) > a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.markdown-body :is(h1, h2, h3, h4, h5, h6) > a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+.markdown-body a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+.markdown-body a:hover {
+  text-decoration-color: var(--foreground);
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+
+.markdown-body del {
+  color: var(--muted);
+}
+
+/* Lists — distinct markers per nesting level. */
+.markdown-body :is(ul, ol) {
+  padding-left: 1.5em;
+}
+
+/* Markers follow nesting depth, whatever mix of ul/ol the parents are. */
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body :is(ul, ol) ul {
+  list-style: circle;
+}
+
+.markdown-body :is(ul, ol) :is(ul, ol) ul {
+  list-style: square;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
+.markdown-body :is(ul, ol) ol {
+  list-style: lower-alpha;
+}
+
+.markdown-body :is(ul, ol) :is(ul, ol) ol {
+  list-style: lower-roman;
+}
+
+.markdown-body li {
+  margin: 0.3em 0;
+}
+
+.markdown-body li > :is(ul, ol) {
+  margin: 0.3em 0 0;
+}
+
+.markdown-body li > p {
+  margin: 0 0 0.5em;
+}
+
+.markdown-body li::marker {
+  color: var(--muted);
+}
+
+/* GFM task lists */
+.markdown-body ul.contains-task-list {
+  list-style: none;
+  padding-left: 0.25em;
+}
+
+.markdown-body .contains-task-list .contains-task-list {
+  padding-left: 1.5em;
+}
+
+.markdown-body li.task-list-item > input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  margin: 0 0.5em 0 0;
+  vertical-align: -0.125em;
+  accent-color: var(--accent);
+}
+
+.markdown-body blockquote {
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.markdown-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2.5em 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.markdown-body :not(pre) > code {
+  font-family: var(--mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--code-background);
+}
+
+/* Tables scroll inside their own wrapper, never the page. */
+.markdown-body .table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.markdown-body table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375em;
+  line-height: 1.5;
+}
+
+.markdown-body :is(th, td) {
+  padding: 0.6em 0.9em;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: normal;
+}
+
+.markdown-body :is(th, td) + :is(th, td) {
+  border-left: 1px solid var(--border);
+}
+
+.markdown-body th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.markdown-body tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Code blocks — horizontal scroll stays inside the <pre>. */
+.markdown-body .code-block {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--code-background);
+}
+
+.markdown-body .code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0.375rem 0.25rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.markdown-body .code-block pre {
+  margin: 0;
+  padding: 1em;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.markdown-body .code-block code {
+  font-family: var(--mono);
+}
+
+.markdown-body section.footnotes {
+  margin-top: 3em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.875em;
+}
+
+/* ------------------------------------------------------------------------
+ * Syntax highlighting (highlight.js classes from rehype-highlight). Token
+ * colors are the --hl-* variables defined per theme at the top.
+ * --------------------------------------------------------------------- */
+
+.hljs {
+  color: var(--foreground);
+  background: transparent;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-variable.language_ {
+  color: var(--hl-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-char,
+.hljs-meta .hljs-string {
+  color: var(--hl-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--hl-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--hl-function);
+}
+
+.hljs-type,
+.hljs-built_in,
+.hljs-title.class_,
+.hljs-title.class_.inherited__ {
+  color: var(--hl-type);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-subst {
+  color: var(--hl-variable);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-selector-pseudo {
+  color: var(--hl-attr);
+}
+
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: var(--hl-meta);
+}
+
+.hljs-tag,
+.hljs-name {
+  color: var(--hl-tag);
+}
+
+.hljs-addition {
+  color: var(--hl-addition);
+}
+
+.hljs-deletion {
+  color: var(--hl-deletion);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------------
+ * Print — chrome is hidden via `print:hidden`; here, ink-friendly colors
+ * (the dark palette is screen-only, so this always starts from light).
+ * --------------------------------------------------------------------- */
+
+@media print {
+  :root {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --border: #cccccc;
+    --foreground: #111111;
+    --muted: #555555;
+    --code-background: #f5f5f5;
+  }
+
+  .note-column {
+    max-width: none;
+    font-size: 11pt;
+  }
+
+  .markdown-body .code-block-header {
+    display: none;
+  }
+
+  .markdown-body .code-block pre {
+    white-space: pre-wrap;
+    overflow: visible;
+  }
+
+  .markdown-body .table-scroll {
+    overflow: visible;
+  }
+
+  .markdown-body :is(.code-block, .table-scroll, blockquote, img, tr) {
+    break-inside: avoid;
+  }
+
+  .markdown-body :is(h1, h2, h3, h4) {
+    break-after: avoid;
+  }
+
+  .markdown-body a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    color: var(--muted);
+    font-size: 0.85em;
+  }
 }

@@ -32,7 +32,7 @@ import {
   type NoteFilterState,
 } from "@/lib/note-filter";
 import { buildNotebookTree, notebookDisplayPath } from "@/lib/notebook-tree";
-import { LAST_LIST_URL_KEY } from "@/lib/routes";
+import { rememberListNavigation } from "@/lib/list-navigation";
 import type { NoteMeta, NotebookSummary, TagSummary } from "@/types/note";
 
 export interface NotesWorkspaceProps {
@@ -112,11 +112,6 @@ export function NotesWorkspace({
     const url = query ? `${pathname}?${query}` : pathname;
     if (url !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState(null, "", url);
-    }
-    try {
-      window.sessionStorage.setItem(LAST_LIST_URL_KEY, url);
-    } catch {
-      // Storage unavailable — "back to notes" links just go to "/".
     }
   }, [state, pathname]);
 
@@ -318,6 +313,7 @@ export function NotesWorkspace({
               />
               <Link
                 href="/new"
+                onClick={() => rememberListNavigation("/new")}
                 className="bg-accent text-accent-foreground inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-opacity hover:opacity-90"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -367,6 +363,7 @@ export function NotesWorkspace({
               action={
                 <Link
                   href="/new"
+                  onClick={() => rememberListNavigation("/new")}
                   className="bg-accent text-accent-foreground inline-flex h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium hover:opacity-90"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />

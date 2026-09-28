@@ -18,7 +18,7 @@ export function PlaceholderPage({
         <p className="text-muted text-xs font-medium tracking-widest uppercase">
           {eyebrow}
         </p>
-        <h1 className="mt-2 text-xl font-semibold break-words">{title}</h1>
+        <h1 className="mt-2 text-xl font-semibold wrap-break-word">{title}</h1>
         <div className="text-muted mt-3 text-sm">{children}</div>
       </div>
     </main>

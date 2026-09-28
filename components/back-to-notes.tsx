@@ -3,32 +3,30 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LAST_LIST_URL_KEY } from "@/lib/routes";
+import { arrivedFromList } from "@/lib/list-navigation";
 
-/** Returns to the notes list with its last search/filter state, falling
- * back to "/" (e.g. when the note was opened directly in a new tab). */
-export function BackToNotes() {
+/**
+ * If this page was reached from the notes list, go back in history so the
+ * list's search/filters are restored. Otherwise (direct link, reload, new
+ * tab) it's a plain link to "/".
+ */
+export function BackToNotes({ className = "" }: { className?: string }) {
   const router = useRouter();
 
   return (
     <Link
       href="/"
       onClick={(event) => {
-        let url: string | null = null;
-        try {
-          url = window.sessionStorage.getItem(LAST_LIST_URL_KEY);
-        } catch {
-          // Storage unavailable — plain "/" is fine.
-        }
-        if (url && url.startsWith("/") && url !== "/") {
+        if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+        if (arrivedFromList()) {
           event.preventDefault();
-          router.push(url);
+          router.back();
         }
       }}
-      className="text-muted hover:text-foreground inline-flex h-11 items-center gap-2 text-sm"
+      className={`text-muted hover:text-foreground hover:bg-surface-hover -ml-2 inline-flex h-11 items-center gap-2 rounded-lg px-2 text-sm transition-colors ${className}`}
     >
       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-      Back to notes
+      Back
     </Link>
   );
 }
