@@ -3,7 +3,7 @@ import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
 import { getNotesRepoConfig, getOctokit, hasGithubConfig } from "@/lib/github";
 import { getNoteLocation } from "@/lib/noteIndex";
-import type { Note, NoteMeta } from "@/types/note";
+import type { Note, NoteMeta, NotebookSummary, TagSummary } from "@/types/note";
 
 /** Single tag all note reads are cached under — revalidate this to pick up
  * changes (see app/api/revalidate/route.ts). */
@@ -352,9 +352,7 @@ export const getNote = unstable_cache(
   { tags: [NOTES_TAG], revalidate: false },
 );
 
-export async function listNotebooks(): Promise<
-  { name: string; path: string; count: number }[]
-> {
+export async function listNotebooks(): Promise<NotebookSummary[]> {
   const notes = await listNotes();
   const counts = new Map<string, number>();
   for (const note of notes) {
@@ -369,7 +367,7 @@ export async function listNotebooks(): Promise<
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export async function listTags(): Promise<{ tag: string; count: number }[]> {
+export async function listTags(): Promise<TagSummary[]> {
   const notes = await listNotes();
   const counts = new Map<string, number>();
   for (const note of notes) {

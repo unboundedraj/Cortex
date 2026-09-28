@@ -8,9 +8,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
  */
 export function AppShell({
   children,
+  headerStart,
+  sidebar,
   inert = false,
 }: {
   children?: ReactNode;
+  headerStart?: ReactNode;
+  sidebar?: ReactNode;
   inert?: boolean;
 }) {
   return (
@@ -19,13 +23,19 @@ export function AppShell({
       aria-hidden={inert ? "true" : undefined}
       className="flex min-h-dvh flex-col"
     >
-      <header className="border-border flex items-center justify-between border-b px-4 py-4 sm:px-6">
-        <h1 className="font-heading text-xl font-bold tracking-wide sm:text-2xl">
-          Cortex
-        </h1>
+      <header className="border-border bg-background/85 sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-3 border-b px-3 backdrop-blur sm:px-6">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {headerStart}
+          <h1 className="font-heading truncate text-xl font-bold tracking-wide sm:text-2xl">
+            Cortex
+          </h1>
+        </div>
         <ThemeToggle />
       </header>
-      <main className="flex-1">{children}</main>
+      <div className="flex flex-1">
+        {sidebar}
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
     </div>
   );
 }

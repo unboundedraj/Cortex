@@ -14,7 +14,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={label}
       title={label}
-      className="border-border bg-surface text-foreground hover:bg-surface-hover inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors"
+      className="border-border bg-surface text-foreground hover:bg-surface-hover inline-flex h-11 w-11 items-center justify-center rounded-full border transition-colors sm:h-9 sm:w-9"
     >
       {/* ThemeProvider always starts at the coded default, matching the
           server exactly, then corrects to the real theme post-mount — so

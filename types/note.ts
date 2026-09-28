@@ -17,3 +17,15 @@ export interface NoteMeta {
 export interface Note extends NoteMeta {
   content: string; // markdown body, frontmatter stripped
 }
+
+/** One folder that directly contains notes; `count` is NOT cumulative. */
+export interface NotebookSummary {
+  name: string;
+  path: string;
+  count: number;
+}
+
+export interface TagSummary {
+  tag: string;
+  count: number;
+}
