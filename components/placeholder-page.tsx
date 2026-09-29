@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import { BackToNotes } from "@/components/back-to-notes";
+import { LogoutButton } from "@/components/logout-button";
 
-/** Temporary scaffolding for routes whose real UI comes in later steps. */
+/** Temporary scaffolding for routes whose real UI comes in later steps.
+ * Currently only /edit and /new use this, which is why the logout control
+ * lives here rather than in the main app shell — both are the only
+ * password-gated routes so far. */
 export function PlaceholderPage({
   eyebrow,
   title,
@@ -13,7 +17,10 @@ export function PlaceholderPage({
 }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 py-6 sm:px-6">
-      <BackToNotes />
+      <div className="flex items-center justify-between">
+        <BackToNotes />
+        <LogoutButton />
+      </div>
       <div className="border-border bg-surface mt-6 rounded-2xl border p-6">
         <p className="text-muted text-xs font-medium tracking-widest uppercase">
           {eyebrow}
