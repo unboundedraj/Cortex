@@ -2,7 +2,7 @@
 
 import { FileText, Folder, Menu, Plus, Search, SearchX, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -33,6 +33,11 @@ import {
 } from "@/lib/note-filter";
 import { buildNotebookTree, notebookDisplayPath } from "@/lib/notebook-tree";
 import { rememberListNavigation } from "@/lib/list-navigation";
+import {
+  describeDeleteFailure,
+  requestDelete,
+  type WriteFailure,
+} from "@/lib/notes-client";
 import type { NoteMeta, NotebookSummary, TagSummary } from "@/types/note";
 
 export interface NotesWorkspaceProps {
@@ -75,7 +80,7 @@ function EmptyState({
 }
 
 export function NotesWorkspace({
-  notes,
+  notes: loadedNotes,
   notebooks,
   tags,
   inert,
@@ -87,6 +92,18 @@ export function NotesWorkspace({
     note: NoteMeta;
     returnFocusTo: HTMLElement | null;
   } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<WriteFailure | null>(null);
+  // Hidden right away on a successful delete; router.refresh() then brings
+  // the revalidated list from the server.
+  const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const notes = useMemo(
+    () => loadedNotes.filter((note) => !removedIds.has(note.id)),
+    [loadedNotes, removedIds],
+  );
+  const router = useRouter();
   const toast = useToast();
   const searchRef = useRef<HTMLInputElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -170,8 +187,7 @@ export function NotesWorkspace({
 
   const { show: showToast } = toast;
 
-  // TODO(writes): pin/unpin and delete are stubs until the write pipeline
-  // (commit to the notes repo + revalidate "notes") exists.
+  // TODO(writes): pin/unpin is still a stub.
   const handleTogglePin = useCallback(
     (note: NoteMeta) =>
       showToast(
@@ -181,15 +197,38 @@ export function NotesWorkspace({
   );
 
   const handleRequestDelete = useCallback(
-    (note: NoteMeta, returnFocusTo: HTMLElement | null) =>
-      setPendingDelete({ note, returnFocusTo }),
+    (note: NoteMeta, returnFocusTo: HTMLElement | null) => {
+      setDeleteError(null);
+      setPendingDelete({ note, returnFocusTo });
+    },
     [],
   );
 
-  const confirmDelete = () => {
-    // TODO(writes): delete pendingDelete.note from the notes repo.
-    setPendingDelete(null);
-    showToast("Deleting notes is coming soon");
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { note } = pendingDelete;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await requestDelete(note);
+    setDeleting(false);
+
+    // Already gone elsewhere is still the outcome the user asked for.
+    if (result.ok || result.error.code === "not_found") {
+      setRemovedIds((prev) => new Set(prev).add(note.id));
+      setPendingDelete(null);
+      showToast(
+        result.ok
+          ? `Deleted “${note.title}”`
+          : `“${note.title}” was already deleted elsewhere`,
+      );
+      router.refresh();
+      return;
+    }
+
+    setDeleteError(result.error);
+    // The server revalidated on conflict — pull the fresh sha so a retry
+    // after reviewing the change can succeed.
+    if (result.error.code === "conflict") router.refresh();
   };
 
   const chips: { key: string; label: ReactNode; onRemove: () => void }[] = [];
@@ -419,8 +458,21 @@ export function NotesWorkspace({
       <ConfirmDialog
         open={pendingDelete !== null}
         title={`Delete “${pendingDelete?.note.title ?? ""}”?`}
-        description="This will permanently remove the note from your notes repo. (Deleting isn't wired up yet — nothing will actually be deleted.)"
-        confirmLabel="Delete note"
+        description="This permanently removes the note from your notes repo (it stays recoverable from the repo's git history)."
+        confirmLabel={deleting ? "Deleting…" : "Delete note"}
+        pending={deleting}
+        error={
+          deleteError && (
+            <>
+              {describeDeleteFailure(deleteError)}{" "}
+              {deleteError.code === "unauthorized" && (
+                <Link href="/login?from=%2F" className="underline">
+                  Sign in
+                </Link>
+              )}
+            </>
+          )
+        }
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
         returnFocus={() => pendingDelete?.returnFocusTo ?? null}

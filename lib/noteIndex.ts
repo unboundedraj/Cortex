@@ -37,6 +37,12 @@ export async function registerNote(
   await saveIndex(index);
 }
 
+export async function unregisterNote(noteId: string): Promise<void> {
+  const index = await loadIndex();
+  delete index[noteId];
+  await saveIndex(index);
+}
+
 /**
  * The ONLY place the rollover rule (which repo a brand-new note goes into)
  * should live. For now there is a single configured repo; a future version

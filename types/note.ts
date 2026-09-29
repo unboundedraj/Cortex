@@ -11,6 +11,9 @@ export interface NoteMeta {
   tags: string[];
   notebook: string;
   pinned: boolean;
+  /** Git blob sha of the file as read — required to update or delete it,
+   * and how a write detects that the file changed since it was loaded. */
+  sha: string;
   excerpt: string;
 }
 

@@ -62,7 +62,7 @@ function makeExcerpt(body: string): string {
  * extra GitHub API request per undated note, which we'd rather not pay for
  * on every listNotes() call. Document dates in frontmatter to avoid this.
  */
-function parseNoteFile(path: string, raw: string): Note {
+function parseNoteFile(path: string, raw: string, sha: string): Note {
   const { id, notebook } = deriveIdAndNotebook(path);
   const { data, content } = matter(raw);
 
@@ -97,6 +97,7 @@ function parseNoteFile(path: string, raw: string): Note {
     date,
     tags,
     pinned,
+    sha,
     excerpt: makeExcerpt(trimmedContent),
     content: trimmedContent,
   };
@@ -232,6 +233,7 @@ const SAMPLE_NOTES: Note[] = SAMPLE_NOTE_SOURCES.map((source) => {
     date: source.date,
     tags: source.tags,
     pinned: source.pinned,
+    sha: `sample-${source.id}`,
     excerpt: makeExcerpt(source.content),
     content: source.content.trim(),
   };
@@ -291,7 +293,9 @@ async function fetchAllNotesFromGitHub(): Promise<Note[]> {
       file_sha: entry.sha,
     });
     const raw = Buffer.from(blob.content, "base64").toString("utf-8");
-    return parseNoteFile(entry.path, raw);
+    // A tree entry's sha is the blob sha — the same value the contents API
+    // requires to update or delete the file.
+    return parseNoteFile(entry.path, raw, entry.sha);
   });
 }
 
@@ -312,7 +316,7 @@ async function fetchOneNoteFromGitHub(id: string): Promise<Note | null> {
     }
 
     const raw = Buffer.from(data.content, "base64").toString("utf-8");
-    return parseNoteFile(location.path, raw);
+    return parseNoteFile(location.path, raw, data.sha);
   } catch (error) {
     if (isNotFoundError(error)) return null;
     throw error;
@@ -331,7 +335,9 @@ const getCachedNotes = unstable_cache(
     }
     return fetchAllNotesFromGitHub();
   },
-  ["notes", "listNotes"],
+  // "v2": entries cached before notes carried a `sha` must never be served
+  // to code that relies on it (the data cache can outlive a deploy).
+  ["notes", "listNotes", "v2"],
   { tags: [NOTES_TAG], revalidate: false },
 );
 
@@ -340,15 +346,20 @@ export async function listNotes(): Promise<NoteMeta[]> {
   return notes.map(({ content: _content, ...meta }) => meta);
 }
 
+/** Uncached: always GitHub's current version. The editor loads through
+ * this so the sha it later sends back reflects the real file, not a
+ * cached copy that may predate an edit made directly on GitHub. */
+export async function getNoteFresh(id: string): Promise<Note | null> {
+  if (!hasGithubConfig()) {
+    warnFallback();
+    return SAMPLE_NOTES.find((note) => note.id === id) ?? null;
+  }
+  return fetchOneNoteFromGitHub(id);
+}
+
 export const getNote = unstable_cache(
-  async (id: string): Promise<Note | null> => {
-    if (!hasGithubConfig()) {
-      warnFallback();
-      return SAMPLE_NOTES.find((note) => note.id === id) ?? null;
-    }
-    return fetchOneNoteFromGitHub(id);
-  },
-  ["notes", "getNote"],
+  async (id: string): Promise<Note | null> => getNoteFresh(id),
+  ["notes", "getNote", "v2"],
   { tags: [NOTES_TAG], revalidate: false },
 );
 

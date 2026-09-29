@@ -48,3 +48,12 @@ export function getSessionOptions(): SessionOptions {
 export async function getSession() {
   return getIronSession<SessionData>(await cookies(), getSessionOptions());
 }
+
+/** Server-side session check for write endpoints — independent of
+ * proxy.ts, so a matcher change can't silently expose a write route. A
+ * missing, expired, tampered or unsigned cookie all read as an empty
+ * session (iron-session never throws on a bad cookie). */
+export async function isAuthenticated(): Promise<boolean> {
+  const session = await getSession();
+  return session.authenticated === true;
+}

@@ -19,6 +19,21 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // An API caller that followed a redirect would just receive the login
+  // page's HTML with a 200 — answer with a real 401 instead. (The route
+  // handlers re-check the session themselves; this is the outer layer.)
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "unauthorized",
+          message: "You need to sign in to change notes.",
+        },
+      },
+      { status: 401 },
+    );
+  }
+
   const loginUrl = new URL("/login", request.url);
   // URLSearchParams handles the encoding — no manual encodeURIComponent.
   loginUrl.searchParams.set(
@@ -29,8 +44,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /api/notes/* doesn't exist yet, but is matched proactively for when
-  // write endpoints land there. /api/revalidate is deliberately excluded —
-  // it has its own header-secret check, not the password gate.
+  // `/api/notes/:path*` also matches `/api/notes` itself (`*` = zero or
+  // more). /api/revalidate is deliberately excluded — it has its own
+  // header-secret check, not the password gate.
   matcher: ["/edit/:path*", "/new", "/api/notes/:path*"],
 };

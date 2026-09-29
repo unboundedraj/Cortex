@@ -775,3 +775,98 @@ input[type="search"]::-webkit-search-cancel-button {
     font-size: 0.85em;
   }
 }
+
+/* ------------------------------------------------------------------------
+ * Note editor (Tiptap). The content area reuses .markdown-body so editing
+ * looks like reading; these rules cover where Tiptap's DOM differs.
+ * --------------------------------------------------------------------- */
+
+.note-editor:focus-within {
+  border-color: var(--ring);
+}
+
+.note-editor-content {
+  min-height: 20rem;
+  outline: none;
+}
+
+.note-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Tight list items: Tiptap wraps item text in <p>. */
+.note-editor-content li > p,
+.note-editor-content :is(td, th) > p {
+  margin: 0;
+}
+
+.note-editor-content pre {
+  margin: 0 0 1.25em;
+  padding: 1em;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--code-background);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+
+.note-editor-content pre code {
+  font-family: var(--mono);
+}
+
+.note-editor-content .tableWrapper {
+  margin: 0 0 1.25em;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.note-editor-content .selectedCell {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.note-editor-content ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25em;
+}
+
+.note-editor-content ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.note-editor-content ul[data-type="taskList"] li > label {
+  flex: none;
+  margin-top: 0.35em;
+  user-select: none;
+}
+
+.note-editor-content ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  accent-color: var(--accent);
+}
+
+.note-editor-content .ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.note-editor-content hr {
+  cursor: pointer;
+}

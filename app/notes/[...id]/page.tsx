@@ -142,6 +142,7 @@ export default async function NotePage({
                 id={note.id}
                 title={note.title}
                 pinned={note.pinned}
+                sha={note.sha}
               />
             </header>
 
