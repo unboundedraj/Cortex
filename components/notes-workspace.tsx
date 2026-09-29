@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Folder, Menu, Plus, Search, SearchX, X } from "lucide-react";
+import { FileText, Folder, Menu, Plus, SearchX, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -20,17 +20,27 @@ import {
   MobileNotebookDrawer,
 } from "@/components/notebook-sidebar";
 import { Toast, useToast } from "@/components/toast";
+import { SearchBox } from "@/components/search-box";
 import {
+  bodyOnlyTerms,
+  createIndexSearch,
   dateFilterLabel,
   DEFAULT_FILTER_STATE,
   filterAndSortNotes,
   hasActiveFilters,
   isDateActive,
   localDay,
+  searchNotes,
   serializeFilterState,
   SORT_OPTIONS,
+  substringSearch,
+  usesRelevanceOrder,
   type NoteFilterState,
 } from "@/lib/note-filter";
+import { SEARCH_OPTIONS } from "@/lib/search-config";
+import { buildSnippet, type SnippetPart } from "@/lib/search-snippet";
+import { useSearchIndex } from "@/lib/use-search-index";
+import { useSnippetTexts } from "@/lib/use-snippet-texts";
 import { buildNotebookTree, notebookDisplayPath } from "@/lib/notebook-tree";
 import { rememberListNavigation } from "@/lib/list-navigation";
 import {
@@ -46,7 +56,11 @@ export interface NotesWorkspaceProps {
   tags: TagSummary[];
   inert: boolean;
   initialState: NoteFilterState;
+  /** Content hash of the search index the page was rendered with. */
+  searchIndexVersion: string;
 }
+
+const MAX_SNIPPETS = 20;
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -85,6 +99,7 @@ export function NotesWorkspace({
   tags,
   inert,
   initialState,
+  searchIndexVersion,
 }: NotesWorkspaceProps) {
   const [state, setState] = useState(initialState);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -114,10 +129,71 @@ export function NotesWorkspace({
   const [today] = useState(() => localDay(new Date()));
 
   const tree = useMemo(() => buildNotebookTree(notebooks), [notebooks]);
-  const visibleNotes = useMemo(
-    () => filterAndSortNotes(notes, state, { today }),
-    [notes, state, today],
+
+  // Full-text search: the index loads on first interaction with the search
+  // box. Until it's ready (or if it fails), the substring fallback keeps
+  // results coming, and they refine automatically once it arrives.
+  const searchIndex = useSearchIndex(searchIndexVersion);
+  const search = useMemo(
+    () =>
+      searchIndex.index
+        ? createIndexSearch(searchIndex.index, SEARCH_OPTIONS)
+        : substringSearch,
+    [searchIndex.index],
   );
+  const hits = useMemo(
+    () => searchNotes(notes, state.query, search),
+    [notes, state.query, search],
+  );
+  const visibleNotes = useMemo(
+    () => filterAndSortNotes(notes, state, { today, hits }),
+    [notes, state, today, hits],
+  );
+  const byRelevance = usesRelevanceOrder(state, hits);
+
+  // A query restored from the URL (e.g. coming back from a note) counts as
+  // search interaction, so load the index without waiting for a focus.
+  const [hadInitialQuery] = useState(() => initialState.query.trim() !== "");
+  const loadIndex = searchIndex.load;
+  useEffect(() => {
+    if (!hadInitialQuery) return;
+    const timer = window.setTimeout(loadIndex, 0);
+    return () => window.clearTimeout(timer);
+  }, [hadInitialQuery, loadIndex]);
+
+  // Snippets only for visible results whose match came from the body.
+  const snippetIds = useMemo(
+    () =>
+      hits
+        ? visibleNotes
+            .slice(0, MAX_SNIPPETS)
+            .filter((note) => bodyOnlyTerms(hits.get(note.id)).length > 0)
+            .map((note) => note.id)
+        : [],
+    [hits, visibleNotes],
+  );
+  const snippetTexts = useSnippetTexts(
+    searchIndexVersion,
+    snippetIds,
+    state.query,
+  );
+  const snippets = useMemo(() => {
+    const result = new Map<string, SnippetPart[]>();
+    if (!hits) return result;
+    for (const id of snippetIds) {
+      const hit = hits.get(id);
+      const text = snippetTexts.get(id);
+      if (!hit || !text) continue;
+      const snippet = buildSnippet(
+        text,
+        bodyOnlyTerms(hit),
+        Object.keys(hit.match),
+      );
+      if (snippet) result.set(id, snippet);
+    }
+    return result;
+  }, [hits, snippetIds, snippetTexts]);
+
   const activeTags = useMemo(() => new Set(state.tags), [state.tags]);
 
   // One-way sync: local state is the source of truth; the URL mirrors it.
@@ -299,49 +375,14 @@ export function NotesWorkspace({
       >
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative sm:flex-1">
-              <Search
-                className="text-muted pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2"
-                aria-hidden="true"
-              />
-              <input
-                ref={searchRef}
-                type="search"
-                value={state.query}
-                onChange={(e) => update({ query: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key !== "Escape") return;
-                  if (state.query) update({ query: "" });
-                  else e.currentTarget.blur();
-                }}
-                placeholder="Search notes"
-                aria-label="Search notes"
-                aria-keyshortcuts="/"
-                autoComplete="off"
-                spellCheck={false}
-                className="border-border bg-surface placeholder:text-muted h-11 w-full rounded-xl border pr-11 pl-10 text-sm"
-              />
-              {state.query ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    update({ query: "" });
-                    searchRef.current?.focus();
-                  }}
-                  aria-label="Clear search"
-                  className="text-muted hover:text-foreground absolute top-1/2 right-1 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg"
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-              ) : (
-                <kbd
-                  aria-hidden="true"
-                  className="border-border text-muted pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border px-1.5 font-sans text-xs sm:block"
-                >
-                  /
-                </kbd>
-              )}
-            </div>
+            <SearchBox
+              value={state.query}
+              onChange={(query) => update({ query })}
+              onActivate={searchIndex.load}
+              status={searchIndex.status}
+              slow={searchIndex.slow}
+              inputRef={searchRef}
+            />
 
             <div className="flex items-center justify-between gap-2 sm:justify-start">
               <FilterPopover
@@ -365,6 +406,10 @@ export function NotesWorkspace({
           <div className="flex min-h-8 flex-wrap items-center gap-2 text-sm">
             <p className="text-muted mr-1" aria-live="polite">
               {countText}
+              {byRelevance && " · best match first"}
+              {state.query.trim() &&
+                searchIndex.status === "error" &&
+                " · full-text search unavailable, matching titles, tags and excerpts"}
             </p>
             {chips.map((chip) => (
               <button
@@ -431,6 +476,7 @@ export function NotesWorkspace({
                 <NoteBar
                   key={note.id}
                   note={note}
+                  snippet={snippets.get(note.id) ?? null}
                   activeTags={activeTags}
                   onToggleTag={toggleTag}
                   onTogglePin={handleTogglePin}

@@ -341,6 +341,12 @@ const getCachedNotes = unstable_cache(
   { tags: [NOTES_TAG], revalidate: false },
 );
 
+/** Every note including its body, from the same cached fetch as
+ * listNotes() — used to build the search index without extra GitHub calls. */
+export async function listNotesWithContent(): Promise<Note[]> {
+  return getCachedNotes();
+}
+
 export async function listNotes(): Promise<NoteMeta[]> {
   const notes = await getCachedNotes();
   return notes.map(({ content: _content, ...meta }) => meta);

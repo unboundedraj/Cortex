@@ -1,3 +1,5 @@
+import type MiniSearch from "minisearch";
+import type { SearchOptions } from "minisearch";
 import type { NoteMeta } from "@/types/note";
 
 export type DatePreset = "any" | "today" | "7d" | "30d" | "year" | "custom";
@@ -43,23 +45,34 @@ export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Search — swappable. The UI never calls this directly; it only calls
-// filterAndSortNotes(), so a full-body MiniSearch index can replace
-// substringSearch later by matching this signature.
+// Search — produces hits; filterAndSortNotes() then intersects them with the
+// notebook/tag/date filters and orders them.
 // ---------------------------------------------------------------------------
 
-/** Returns the ids of notes matching `query` (query is already trimmed and
- * non-empty). */
+export interface SearchHit {
+  /** Relevance score. Absent for the substring fallback, which can't rank —
+   * results then keep the selected sort. */
+  score?: number;
+  /** Matched document terms -> the fields each matched in (e.g. "body"). */
+  match: Record<string, string[]>;
+}
+
+/** Hits keyed by note id, in relevance order (Map preserves insertion order).
+ * The query passed in is already trimmed and non-empty. */
 export type NoteSearch = (
   notes: readonly NoteMeta[],
   query: string,
-) => ReadonlySet<string>;
+) => ReadonlyMap<string, SearchHit>;
 
-/** Case-insensitive; every whitespace-separated term must appear somewhere
- * in the title, tags, notebook or excerpt. */
+/**
+ * FALLBACK ONLY — used while the full-text index is still loading, or if it
+ * failed to load, so search keeps working instead of breaking. It can't see
+ * note bodies and can't rank: case-insensitive; every whitespace-separated
+ * term must appear somewhere in the title, tags, notebook or excerpt.
+ */
 export const substringSearch: NoteSearch = (notes, query) => {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = new Set<string>();
+  const hits = new Map<string, SearchHit>();
   for (const note of notes) {
     const haystack = [
       note.title,
@@ -69,10 +82,38 @@ export const substringSearch: NoteSearch = (notes, query) => {
     ]
       .join("\n")
       .toLowerCase();
-    if (terms.every((term) => haystack.includes(term))) matches.add(note.id);
+    if (terms.every((term) => haystack.includes(term))) {
+      hits.set(note.id, { match: {} });
+    }
   }
-  return matches;
+  return hits;
 };
+
+/** Full-text search over a loaded MiniSearch index (title, tags, notebook
+ * and the whole body), ranked by relevance. */
+export function createIndexSearch(
+  index: MiniSearch,
+  options: SearchOptions,
+): NoteSearch {
+  return (_notes, query) => {
+    const hits = new Map<string, SearchHit>();
+    for (const result of index.search(query, options)) {
+      hits.set(String(result.id), { score: result.score, match: result.match });
+    }
+    return hits;
+  };
+}
+
+/** The matched terms that appear in the body but not the title — i.e. what
+ * a snippet would show that the title doesn't. Empty = no snippet needed. */
+export function bodyOnlyTerms(hit: SearchHit | undefined): string[] {
+  if (!hit) return [];
+  return Object.entries(hit.match)
+    .filter(
+      ([, fields]) => fields.includes("body") && !fields.includes("title"),
+    )
+    .map(([term]) => term);
+}
 
 // ---------------------------------------------------------------------------
 // Predicates
@@ -216,15 +257,51 @@ export function shouldFloatPinned(state: NoteFilterState): boolean {
   return state.sort === DEFAULT_FILTER_STATE.sort && !hasActiveFilters(state);
 }
 
+/**
+ * Search + sort rule, in one place:
+ * - Relevance order applies when there's a search query, the index could
+ *   rank it (not the substring fallback), AND the sort is the default
+ *   ("Newest first"). The default sort means "no preference", so relevance
+ *   wins over date.
+ * - An explicitly chosen sort (Oldest, Title A–Z/Z–A) always wins over
+ *   relevance — search then only filters.
+ * - Pinned floating is unchanged and applies first: it's on only with the
+ *   default sort and no notebook/tag/date filter. Search text alone doesn't
+ *   cancel it, so matching pinned notes float, then relevance order.
+ */
+export function usesRelevanceOrder(
+  state: NoteFilterState,
+  hits: ReadonlyMap<string, SearchHit> | null,
+): boolean {
+  if (!hits || state.sort !== DEFAULT_FILTER_STATE.sort) return false;
+  const first = hits.values().next().value;
+  return first?.score !== undefined;
+}
+
+export function searchNotes(
+  notes: readonly NoteMeta[],
+  query: string,
+  search: NoteSearch = substringSearch,
+): ReadonlyMap<string, SearchHit> | null {
+  const trimmed = query.trim();
+  return trimmed ? search(notes, trimmed) : null;
+}
+
 export function filterAndSortNotes(
   notes: readonly NoteMeta[],
   state: NoteFilterState,
-  options: { today: string; search?: NoteSearch },
+  options: {
+    today: string;
+    /** Precomputed hits (from searchNotes), so callers that also need them
+     * for snippets don't search twice. */
+    hits?: ReadonlyMap<string, SearchHit> | null;
+    search?: NoteSearch;
+  },
 ): NoteMeta[] {
-  const query = state.query.trim();
-  const searchHits = query
-    ? (options.search ?? substringSearch)(notes, query)
-    : null;
+  const searchHits =
+    options.hits !== undefined
+      ? options.hits
+      : searchNotes(notes, state.query, options.search);
   const range = dateRange(state, options.today);
   const tagSet = state.tags.length ? new Set(state.tags) : null;
 
@@ -242,9 +319,12 @@ export function filterAndSortNotes(
   });
 
   const floatPinned = shouldFloatPinned(state);
+  const byRelevance = usesRelevanceOrder(state, searchHits);
+  const score = (note: NoteMeta) => searchHits?.get(note.id)?.score ?? 0;
   return result.sort(
     (a, b) =>
       (floatPinned ? Number(b.pinned) - Number(a.pinned) : 0) ||
+      (byRelevance ? score(b) - score(a) : 0) ||
       compare(a, b, state.sort),
   );
 }

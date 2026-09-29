@@ -315,6 +315,15 @@ html[data-entered="true"] .landing-overlay {
   }
 }
 
+/* Matched words in search-result snippets. */
+.search-hit {
+  padding: 0 0.1em;
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 /* The search box renders its own clear button. */
 input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;

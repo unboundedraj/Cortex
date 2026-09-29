@@ -27,10 +27,12 @@ export function HomeClient({
   notes,
   notebooks,
   tags,
+  searchIndexVersion,
 }: {
   notes: NoteMeta[];
   notebooks: NotebookSummary[];
   tags: TagSummary[];
+  searchIndexVersion: string;
 }) {
   // Both the server render and the first client render start from `false`
   // so hydration never mismatches structurally. The inline script in
@@ -62,7 +64,13 @@ export function HomeClient({
     }
   }, []);
 
-  const data: WorkspaceDataProps = { notes, notebooks, tags, inert: !entered };
+  const data: WorkspaceDataProps = {
+    notes,
+    notebooks,
+    tags,
+    inert: !entered,
+    searchIndexVersion,
+  };
 
   return (
     <>

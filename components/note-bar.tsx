@@ -2,12 +2,13 @@
 
 import { Ellipsis, Folder, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { memo, useId, useRef, useState } from "react";
+import { Fragment, memo, useId, useRef, useState } from "react";
 import { useDismiss } from "@/lib/hooks";
 import { rememberListNavigation } from "@/lib/list-navigation";
 import { formatNoteDate } from "@/lib/note-filter";
 import { notebookDisplayPath } from "@/lib/notebook-tree";
 import { noteEditHref, noteHref } from "@/lib/routes";
+import type { SnippetPart } from "@/lib/search-snippet";
 import type { NoteMeta } from "@/types/note";
 
 const MAX_VISIBLE_TAGS = 3;
@@ -104,10 +105,16 @@ function MobileActionsMenu({
 function NoteBarImpl({
   note,
   activeTags,
+  snippet,
   onToggleTag,
   onTogglePin,
   onRequestDelete,
-}: { note: NoteMeta; activeTags: ReadonlySet<string> } & NoteBarActions) {
+}: {
+  note: NoteMeta;
+  activeTags: ReadonlySet<string>;
+  /** Present only when the search matched text in the body. */
+  snippet: SnippetPart[] | null;
+} & NoteBarActions) {
   const visibleTags = note.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTags = note.tags.slice(MAX_VISIBLE_TAGS);
 
@@ -132,10 +139,26 @@ function NoteBarImpl({
             </Link>
           </div>
 
-          {note.excerpt && (
-            <p className="text-muted mt-0.5 hidden truncate text-sm md:block">
-              {note.excerpt}
+          {snippet ? (
+            // Where in the body the search matched — shown on every width,
+            // unlike the plain excerpt.
+            <p className="text-muted mt-0.5 line-clamp-2 text-sm">
+              {snippet.map((part, index) =>
+                part.hit ? (
+                  <mark key={index} className="search-hit">
+                    {part.text}
+                  </mark>
+                ) : (
+                  <Fragment key={index}>{part.text}</Fragment>
+                ),
+              )}
             </p>
+          ) : (
+            note.excerpt && (
+              <p className="text-muted mt-0.5 hidden truncate text-sm md:block">
+                {note.excerpt}
+              </p>
+            )
           )}
 
           <div className="text-muted mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
