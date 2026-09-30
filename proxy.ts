@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // `/api/notes/:path*` also matches `/api/notes` itself (`*` = zero or
-  // more). /api/revalidate is deliberately excluded — it has its own
-  // header-secret check, not the password gate.
+  // more). /api/revalidate is deliberately excluded — GitHub calls it,
+  // authenticated by the webhook signature, not the password gate.
   matcher: ["/edit/:path*", "/new", "/api/notes/:path*"],
 };
