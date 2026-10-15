@@ -16,8 +16,15 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LogoutButton } from "@/components/logout-button";
 import { NoteEditor, useNoteEditor } from "@/components/note-editor";
 import { TagInput } from "@/components/tag-input";
-import { docToMarkdown } from "@/lib/editor-extensions";
-import type { EditorFidelity } from "@/lib/editor-fidelity";
+import {
+  checkEditorDocument,
+  docToMarkdown,
+  markdownToDoc,
+} from "@/lib/editor-extensions";
+import {
+  checkEditorFidelity,
+  type EditorFidelity,
+} from "@/lib/editor-fidelity";
 import {
   normalizeNotebook,
   notePathFor,
@@ -81,6 +88,10 @@ export function NoteEditorForm(props: Props) {
   const [bodyDirty, setBodyDirty] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [fidelityAck, setFidelityAck] = useState(false);
+  const [saveValidation, setSaveValidation] = useState<EditorFidelity | null>(
+    null,
+  );
+  const [saveValidationAck, setSaveValidationAck] = useState(false);
 
   const [commitOpen, setCommitOpen] = useState(false);
   const [commitMessage, setCommitMessage] = useState("");
@@ -104,6 +115,8 @@ export function NoteEditorForm(props: Props) {
   const editor = useNoteEditor(initial.content, (instance: Editor) => {
     if (baselineRef.current === null) return;
     setBodyDirty(docToMarkdown(instance.getJSON()) !== baselineRef.current);
+    setSaveValidation(null);
+    setSaveValidationAck(false);
   });
 
   // Baseline = the editor's own serialization of the loaded note, so an
@@ -187,6 +200,39 @@ export function NoteEditorForm(props: Props) {
       return;
     }
     if (props.mode === "new" && !notebookResult.ok) return;
+    const currentDocument = editor.getJSON();
+    let serialized: string;
+    try {
+      checkEditorDocument(currentDocument);
+      serialized = docToMarkdown(currentDocument);
+      checkEditorDocument(markdownToDoc(serialized));
+    } catch (error) {
+      const diagnostic =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : String(error);
+      setSaveValidation({
+        faithful: false,
+        parseable: false,
+        constructs: ["document structure"],
+        reason: diagnostic,
+      });
+      setSaveError(
+        `The current document failed editor validation and cannot be saved.\n\n${diagnostic}`,
+      );
+      return;
+    }
+    const validation = checkEditorFidelity(serialized);
+    setSaveValidation(validation);
+    if (!validation.faithful) {
+      if (!validation.parseable) {
+        setSaveError(
+          "The current document cannot be loaded back into the editor. Fix it before saving.",
+        );
+        return;
+      }
+      if (!saveValidationAck) return;
+    }
     if (fidelity && !fidelity.faithful && !fidelityAck) return;
     setTitleError(null);
     setSaveError(null);
@@ -202,6 +248,7 @@ export function NoteEditorForm(props: Props) {
     notebookResult.ok,
     fidelity,
     fidelityAck,
+    saveValidationAck,
   ]);
 
   // Ctrl/Cmd+S opens the commit dialog instead of the browser's "save page".
@@ -413,6 +460,12 @@ export function NoteEditorForm(props: Props) {
               those parts look.
             </span>
           </p>
+          <details className="text-muted mt-2 pl-6 text-xs">
+            <summary className="cursor-pointer">Show full diagnostic</summary>
+            <pre className="mt-2 max-h-96 overflow-auto font-mono break-words whitespace-pre-wrap">
+              {fidelity.reason}
+            </pre>
+          </details>
           <label className="mt-3 flex items-center gap-2">
             <input
               type="checkbox"
@@ -422,6 +475,70 @@ export function NoteEditorForm(props: Props) {
             />
             I understand — let me save anyway
           </label>
+        </section>
+      )}
+
+      {saveValidation && !saveValidation.faithful && (
+        <section
+          role="alert"
+          className="border-danger/50 bg-surface rounded-2xl border p-4 text-sm"
+        >
+          <p className="flex items-start gap-2 font-medium">
+            <TriangleAlert
+              className="text-danger mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span>
+              {saveValidation.parseable
+                ? "The current document changes when it is loaded back into the editor. Review the difference before saving."
+                : "The current document cannot be loaded back into the editor and cannot be saved."}
+            </span>
+          </p>
+          <details className="text-muted mt-2 pl-6 text-xs">
+            <summary className="cursor-pointer">Show full diagnostic</summary>
+            <pre className="mt-2 max-h-96 overflow-auto font-mono break-words whitespace-pre-wrap">
+              {saveValidation.reason}
+            </pre>
+          </details>
+          {saveError && (
+            <p role="alert" className="text-danger mt-3 pl-6 text-xs">
+              {saveError}
+            </p>
+          )}
+          {!saveValidation.parseable ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!editor) return;
+                try {
+                  editor.commands.setContent(
+                    markdownToDoc(docToMarkdown(editor.getJSON())),
+                  );
+                  setSaveValidation(null);
+                  setSaveError(null);
+                } catch (error) {
+                  setSaveError(
+                    error instanceof Error
+                      ? error.message
+                      : "The document could not be fixed automatically.",
+                  );
+                }
+              }}
+              className="bg-accent text-accent-foreground mt-3 ml-6 inline-flex h-10 items-center rounded-lg px-3 text-sm font-medium"
+            >
+              Fix automatically
+            </button>
+          ) : (
+            <label className="mt-3 flex items-center gap-2 pl-6">
+              <input
+                type="checkbox"
+                checked={saveValidationAck}
+                onChange={(event) => setSaveValidationAck(event.target.checked)}
+                className="accent-accent h-4 w-4"
+              />
+              Save anyway — I understand this changes the rendered content
+            </label>
+          )}
         </section>
       )}
 

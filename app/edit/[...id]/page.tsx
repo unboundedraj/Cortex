@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NoteEditorForm } from "@/components/note-editor-form";
+import { RawMarkdownEditorForm } from "@/components/raw-markdown-editor-form";
 import { SiteHeader } from "@/components/site-header";
 import { checkEditorFidelity } from "@/lib/editor-fidelity";
 import { validateNoteId } from "@/lib/note-paths";
@@ -43,19 +44,36 @@ export default async function EditNotePage({
           {!fidelity.faithful && !fidelity.parseable ? (
             // Refuse rather than risk it: if the editor can't even load the
             // note, saving from it would lose content.
-            <div className="border-border bg-surface mx-auto max-w-lg rounded-2xl border p-6 text-center">
+            <div className="border-border bg-surface mx-auto max-w-4xl rounded-2xl border p-6">
               <FileWarning
                 className="text-danger mx-auto h-6 w-6"
                 aria-hidden="true"
               />
-              <h1 className="mt-3 text-lg font-semibold">
+              <h1 className="mt-3 text-center text-lg font-semibold">
                 This note can&apos;t be opened in the editor
               </h1>
-              <p className="text-muted mt-2 text-sm">
-                It contains markdown the editor can&apos;t represent, so editing
-                it here would lose content. Edit the file directly on GitHub
-                instead.
-              </p>
+              <details className="text-muted mt-2 text-sm">
+                <summary className="cursor-pointer text-center">
+                  Show full diagnostic
+                </summary>
+                <pre className="mt-2 max-h-96 overflow-auto text-left font-mono text-xs break-words whitespace-pre-wrap">
+                  {fidelity.reason}
+                </pre>
+              </details>
+              <RawMarkdownEditorForm
+                note={{
+                  id: note.id,
+                  title: note.title,
+                  notebook:
+                    note.notebook === "uncategorized" ? "" : note.notebook,
+                  tags: note.tags,
+                  content: note.content,
+                  sha: note.sha,
+                }}
+                reason={fidelity.reason}
+                notebooks={notebooks}
+                tagSuggestions={tags.map((t) => t.tag)}
+              />
               <Link
                 href={noteHref(note.id)}
                 className="border-border hover:bg-surface-hover mt-5 inline-flex h-11 items-center rounded-xl border px-4 text-sm font-medium"

@@ -14,6 +14,10 @@ import { TaskList } from "@tiptap/extension-task-list";
 import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import { StarterKit } from "@tiptap/starter-kit";
 import { all, createLowlight } from "lowlight";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkStringify from "remark-stringify";
+import type { RootContent } from "mdast";
 
 /*
  * Deliberately free of "@/..." imports and "server-only": the editor
@@ -97,6 +101,46 @@ function wrapRootInlineNodes(
   return { ...doc, content };
 }
 
+const markdownAst = unified().use(remarkParse).use(remarkStringify);
+const LIST_ITEM_CHILDREN = new Set(["paragraph", "list"]);
+
+/**
+ * Tiptap's Markdown parser represents an indented heading in a list item as
+ * a heading followed by its inline text. Normalize the mdast tree first so
+ * that those blocks are siblings of the list before Tiptap parses it.
+ */
+function liftUnsupportedListBlocks(nodes: RootContent[]): RootContent[] {
+  return nodes.flatMap((node) => {
+    if (node.type !== "list") return [node];
+
+    const listItems = [];
+    const lifted: RootContent[] = [];
+    for (const item of node.children) {
+      const firstUnsupported = item.children.findIndex(
+        (child) => !LIST_ITEM_CHILDREN.has(child.type),
+      );
+      if (firstUnsupported < 0) {
+        listItems.push(item);
+        continue;
+      }
+      const prefix = item.children.slice(0, firstUnsupported);
+      if (prefix.length) listItems.push({ ...item, children: prefix });
+      lifted.push(...item.children.slice(firstUnsupported));
+    }
+
+    return [
+      ...(listItems.length ? [{ ...node, children: listItems }] : []),
+      ...lifted,
+    ];
+  });
+}
+
+function normalizeMarkdownTree(markdown: string): string {
+  const tree = markdownAst.parse(markdown);
+  tree.children = liftUnsupportedListBlocks(tree.children);
+  return String(markdownAst.stringify(tree));
+}
+
 /** Markdown -> editor document. Shared by the editor and the fidelity
  * check so both parse identically. */
 export function markdownToDoc(
@@ -109,15 +153,29 @@ export function markdownToDoc(
     indentation: MARKDOWN_INDENTATION,
   });
   const doc = wrapRootInlineNodes(
-    manager.parse(markdown),
+    manager.parse(normalizeMarkdownTree(markdown)),
     (type) => schema.nodes[type]?.isInline ?? false,
   );
   // An empty note parses to a doc with no children; the schema needs one.
   if (!doc.content?.length) doc.content = [{ type: "paragraph" }];
   // Throws on anything the schema can't hold, rather than letting the
   // editor silently drop it.
-  schema.nodeFromJSON(doc).check();
+  try {
+    schema.nodeFromJSON(doc).check();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${message}\nDocument JSON:\n${JSON.stringify(doc, null, 2)}`,
+      { cause: error },
+    );
+  }
   return doc;
+}
+
+/** Validate an editor JSON document with the same schema used by the editor. */
+export function checkEditorDocument(doc: JSONContent): void {
+  const schema = getSchema(createEditorExtensions());
+  schema.nodeFromJSON(doc).check();
 }
 
 /** Editor document -> markdown (the note body saved to GitHub). */

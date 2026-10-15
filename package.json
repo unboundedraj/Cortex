@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --conditions=react-server --import tsx --test tests/**/*.test.ts",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -45,6 +46,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "remark-stringify": "^11.0.0",
     "server-only": "^0.0.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0"
@@ -61,6 +63,7 @@
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
