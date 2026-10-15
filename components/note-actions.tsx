@@ -2,12 +2,14 @@
 
 import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Toast, useToast } from "@/components/toast";
 import {
   describeDeleteFailure,
   requestDelete,
+  requestTogglePin,
   type WriteFailure,
 } from "@/lib/notes-client";
 import { noteEditHref } from "@/lib/routes";
@@ -29,8 +31,38 @@ export function NoteActions({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<WriteFailure | null>(null);
+  const [currentPinned, setCurrentPinned] = useState(pinned);
+  const [currentSha, setCurrentSha] = useState(sha);
+  const [pinning, setPinning] = useState(false);
   const deleteRef = useRef<HTMLButtonElement>(null);
   const toast = useToast();
+  const router = useRouter();
+
+  const togglePin = async () => {
+    if (pinning) return;
+    const nextPinned = !currentPinned;
+    setPinning(true);
+    setCurrentPinned(nextPinned);
+    const result = await requestTogglePin({
+      id,
+      pinned: currentPinned,
+      sha: currentSha,
+    });
+    if (!result.ok) {
+      setCurrentPinned(!nextPinned);
+      setPinning(false);
+      toast.show(
+        result.error.code === "conflict"
+          ? "This note changed elsewhere, refresh and try again"
+          : result.error.message,
+      );
+      if (result.error.code === "conflict") router.refresh();
+      return;
+    }
+    setCurrentSha(result.data.sha);
+    setPinning(false);
+    router.refresh();
+  };
 
   const confirmDelete = async () => {
     setDeleting(true);
@@ -55,20 +87,21 @@ export function NoteActions({
       </Link>
       <button
         type="button"
-        // TODO(writes): toggle `pinned` in frontmatter + revalidate "notes".
-        onClick={() =>
-          toast.show(
-            pinned ? "Unpinning is coming soon" : "Pinning is coming soon",
-          )
-        }
-        className={button}
+        onClick={togglePin}
+        disabled={pinning}
+        aria-pressed={currentPinned}
+        aria-label={currentPinned ? "Unpin note" : "Pin note"}
+        className={`${button} disabled:cursor-wait disabled:opacity-60`}
       >
-        {pinned ? (
-          <PinOff className="h-4 w-4" aria-hidden="true" />
+        {currentPinned ? (
+          <PinOff
+            className="text-accent h-4 w-4 fill-current"
+            aria-hidden="true"
+          />
         ) : (
           <Pin className="h-4 w-4" aria-hidden="true" />
         )}
-        {pinned ? "Unpin" : "Pin"}
+        {currentPinned ? "Unpin" : "Pin"}
       </button>
       <button
         ref={deleteRef}

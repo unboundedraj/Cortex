@@ -46,6 +46,7 @@ import { rememberListNavigation } from "@/lib/list-navigation";
 import {
   describeDeleteFailure,
   requestDelete,
+  requestTogglePin,
   type WriteFailure,
 } from "@/lib/notes-client";
 import type { NoteMeta, NotebookSummary, TagSummary } from "@/types/note";
@@ -114,9 +115,18 @@ export function NotesWorkspace({
   const [removedIds, setRemovedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [pinOverrides, setPinOverrides] = useState(
+    () => new Map<string, { pinned: boolean; sha: string }>(),
+  );
   const notes = useMemo(
-    () => loadedNotes.filter((note) => !removedIds.has(note.id)),
-    [loadedNotes, removedIds],
+    () =>
+      loadedNotes
+        .filter((note) => !removedIds.has(note.id))
+        .map((note) => {
+          const override = pinOverrides.get(note.id);
+          return override ? { ...note, ...override } : note;
+        }),
+    [loadedNotes, removedIds, pinOverrides],
   );
   const router = useRouter();
   const toast = useToast();
@@ -263,13 +273,36 @@ export function NotesWorkspace({
 
   const { show: showToast } = toast;
 
-  // TODO(writes): pin/unpin is still a stub.
   const handleTogglePin = useCallback(
-    (note: NoteMeta) =>
-      showToast(
-        note.pinned ? "Unpinning is coming soon" : "Pinning is coming soon",
-      ),
-    [showToast],
+    async (note: NoteMeta) => {
+      setPinOverrides((current) => {
+        const next = new Map(current);
+        next.set(note.id, { pinned: !note.pinned, sha: note.sha });
+        return next;
+      });
+      const result = await requestTogglePin(note);
+      if (!result.ok) {
+        setPinOverrides((current) => {
+          const next = new Map(current);
+          next.delete(note.id);
+          return next;
+        });
+        showToast(
+          result.error.code === "conflict"
+            ? "This note changed elsewhere, refresh and try again"
+            : result.error.message,
+        );
+        if (result.error.code === "conflict") router.refresh();
+        return;
+      }
+      setPinOverrides((current) => {
+        const next = new Map(current);
+        next.set(note.id, { pinned: !note.pinned, sha: result.data.sha });
+        return next;
+      });
+      router.refresh();
+    },
+    [router, showToast],
   );
 
   const handleRequestDelete = useCallback(

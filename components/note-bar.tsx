@@ -15,7 +15,7 @@ const MAX_VISIBLE_TAGS = 3;
 
 export interface NoteBarActions {
   onToggleTag: (tag: string) => void;
-  onTogglePin: (note: NoteMeta) => void;
+  onTogglePin: (note: NoteMeta) => Promise<void> | void;
   onRequestDelete: (note: NoteMeta, returnFocusTo: HTMLElement | null) => void;
 }
 
@@ -28,6 +28,7 @@ function MobileActionsMenu({
   onRequestDelete,
 }: { note: NoteMeta } & Omit<NoteBarActions, "onToggleTag">) {
   const [open, setOpen] = useState(false);
+  const [pinning, setPinning] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
@@ -75,8 +76,12 @@ function MobileActionsMenu({
             className={item}
             onClick={() => {
               setOpen(false);
-              onTogglePin(note);
+              setPinning(true);
+              void Promise.resolve(onTogglePin(note)).finally(() =>
+                setPinning(false),
+              );
             }}
+            disabled={pinning}
           >
             {note.pinned ? (
               <PinOff className="h-4 w-4" aria-hidden="true" />
@@ -117,6 +122,13 @@ function NoteBarImpl({
 } & NoteBarActions) {
   const visibleTags = note.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTags = note.tags.slice(MAX_VISIBLE_TAGS);
+  const [pinning, setPinning] = useState(false);
+
+  const togglePin = () => {
+    if (pinning) return;
+    setPinning(true);
+    void Promise.resolve(onTogglePin(note)).finally(() => setPinning(false));
+  };
 
   return (
     <li className="group border-border bg-surface hover:bg-surface-hover relative rounded-xl border transition-colors">
@@ -218,13 +230,18 @@ function NoteBarImpl({
           </Link>
           <button
             type="button"
-            onClick={() => onTogglePin(note)}
-            aria-label={`${note.pinned ? "Unpin" : "Pin"} ${note.title}`}
+            onClick={togglePin}
+            disabled={pinning}
+            aria-pressed={note.pinned}
+            aria-label={note.pinned ? "Unpin note" : "Pin note"}
             title={note.pinned ? "Unpin" : "Pin"}
-            className={iconButton}
+            className={`${iconButton} disabled:cursor-wait disabled:opacity-60`}
           >
             {note.pinned ? (
-              <PinOff className="h-4 w-4" aria-hidden="true" />
+              <PinOff
+                className="text-accent h-4 w-4 fill-current"
+                aria-hidden="true"
+              />
             ) : (
               <Pin className="h-4 w-4" aria-hidden="true" />
             )}

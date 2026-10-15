@@ -31,6 +31,11 @@
   --code-background: #efe6cd;
   --danger: #a8321f;
   --danger-foreground: #fdf8ee;
+  --scroll-btn-bg: #fbf6ea;
+  --scroll-btn-fg: #2a2118;
+  --scroll-ring: #b8891f;
+  --scroll-ring-track: #ddcfaa;
+  --scroll-btn-shadow: 0 8px 24px rgb(105 75 20 / 18%);
 
   /* Syntax highlighting — all ≥4.5:1 against --code-background. */
   --hl-comment: #6b5c40;
@@ -65,6 +70,11 @@
     --code-background: #171717;
     --danger: #e5484d;
     --danger-foreground: #0a0a0a;
+    --scroll-btn-bg: #141414;
+    --scroll-btn-fg: #fff;
+    --scroll-ring: #ededed;
+    --scroll-ring-track: #3a3a3a;
+    --scroll-btn-shadow: 0 8px 24px rgb(0 0 0 / 40%);
 
     --hl-comment: #8b8b8b;
     --hl-keyword: #c6a0f6;
@@ -350,6 +360,78 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .note-toc {
   display: none;
+}
+
+.scroll-to-top {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  color: var(--scroll-btn-fg);
+  background: var(--scroll-btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  box-shadow: var(--scroll-btn-shadow);
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    color 180ms ease;
+}
+
+.scroll-to-top.is-visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.scroll-to-top:hover {
+  color: var(--scroll-ring);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.scroll-to-top__ring {
+  position: absolute;
+  inset: -1px;
+  width: 50px;
+  height: 50px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.scroll-to-top__track,
+.scroll-to-top__progress {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.scroll-to-top__track {
+  stroke: var(--scroll-ring-track);
+}
+
+.scroll-to-top__progress {
+  stroke: var(--scroll-ring);
+  stroke-linecap: round;
+  transition: stroke 180ms ease;
+}
+
+@media (min-width: 1280px) {
+  .scroll-to-top {
+    right: calc(max(24px, (100vw - 1216px) / 2) + env(safe-area-inset-right));
+    bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+}
+
+@media print {
+  .scroll-to-top {
+    display: none;
+  }
 }
 
 @media (min-width: 1280px) {

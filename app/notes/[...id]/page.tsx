@@ -6,6 +6,7 @@ import { BackToNotes } from "@/components/back-to-notes";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { NoteActions } from "@/components/note-actions";
 import { SiteHeader } from "@/components/site-header";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import {
   processMarkdown,
   readingTimeMinutes,
@@ -152,6 +153,7 @@ export default async function NotePage({
           {showToc && <TableOfContents headings={headings} />}
         </div>
       </main>
+      <ScrollToTop />
     </div>
   );
 }

@@ -12,7 +12,7 @@ export type WriteResult<T> =
 
 export async function callWriteApi<T>(
   url: string,
-  init: { method: "POST" | "PUT" | "DELETE"; body: unknown },
+  init: { method: "POST" | "PUT" | "DELETE" | "PATCH"; body: unknown },
 ): Promise<WriteResult<T>> {
   let response: Response;
   try {
@@ -69,6 +69,17 @@ export function describeWriteFailure(error: WriteFailure): string {
 
 export function encodeNoteIdForUrl(id: string): string {
   return id.split("/").map(encodeURIComponent).join("/");
+}
+
+export function requestTogglePin(note: {
+  id: string;
+  pinned: boolean;
+  sha: string;
+}): Promise<WriteResult<{ id: string; sha: string }>> {
+  return callWriteApi(`/api/notes/${encodeNoteIdForUrl(note.id)}`, {
+    method: "PATCH",
+    body: { pinned: !note.pinned, sha: note.sha },
+  });
 }
 
 /** The sha is required: a note that changed since it was loaded is never

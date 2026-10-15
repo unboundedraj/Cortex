@@ -19,7 +19,9 @@ import {
   slugify,
   validateNoteId,
 } from "@/lib/note-paths";
+import { editPinnedFrontmatter } from "@/lib/frontmatter";
 import { NOTES_TAG } from "@/lib/notes";
+export { editPinnedFrontmatter } from "@/lib/frontmatter";
 
 // ---------------------------------------------------------------------------
 // Errors — every failure maps to a distinct, client-usable code.
@@ -529,6 +531,67 @@ export async function updateNote(
   await registerNote(id, { ...location, sha: newSha });
   revalidateNotes();
   return { id, sha: newSha };
+}
+
+export async function togglePinnedNote(
+  rawId: string,
+  input: unknown,
+): Promise<{ id: string; sha: string }> {
+  ensureConfigured();
+  const id = readNoteId(rawId);
+  const body = asRecord(input);
+  if (typeof body.pinned !== "boolean") {
+    throw validation("Pinned must be a boolean.");
+  }
+  const sha = readSha(body.sha);
+  const location = await getNoteLocation(id);
+  const current = await readCurrentFile(location.repo, location.path);
+  if (!current) {
+    revalidateNotes();
+    throw new WriteError(
+      "not_found",
+      "This note no longer exists — it was deleted or moved elsewhere.",
+      404,
+    );
+  }
+  if (current.sha !== sha) {
+    revalidateNotes();
+    throw new WriteError(
+      "conflict",
+      "This note changed elsewhere since you opened it.",
+      409,
+    );
+  }
+
+  const edited = editPinnedFrontmatter(
+    current.raw,
+    body.pinned,
+    id.split("/").pop(),
+  );
+  if (edited.raw === current.raw) return { id, sha: current.sha };
+
+  const octokit = getWriteOctokit();
+  const { owner } = getNotesRepoConfig();
+  try {
+    const { data } = await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo: location.repo,
+      path: location.path,
+      message: `${body.pinned ? "Pin" : "Unpin"}: ${edited.title}`,
+      content: encode(edited.raw),
+      sha,
+    });
+    const newSha = data.content?.sha ?? "";
+    await registerNote(id, { ...location, sha: newSha });
+    revalidateNotes();
+    return { id, sha: newSha };
+  } catch (error) {
+    const writeError = toWriteError(error, "update");
+    if (writeError.code === "conflict" || writeError.code === "not_found") {
+      revalidateNotes();
+    }
+    throw writeError;
+  }
 }
 
 export async function deleteNote(rawId: string, input: unknown): Promise<void> {

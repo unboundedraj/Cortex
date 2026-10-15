@@ -1,7 +1,25 @@
 import { NextResponse } from "next/server";
-import { deleteNote, updateNote } from "@/lib/note-writer";
+import { deleteNote, togglePinnedNote, updateNote } from "@/lib/note-writer";
 import { decodeNoteId } from "@/lib/routes";
 import { readJson, requireSession, writeErrorResponse } from "@/lib/write-api";
+
+/** Toggle only the pinned frontmatter field. Body: { pinned, sha }. */
+export async function PATCH(
+  request: Request,
+  { params }: RouteContext<"/api/notes/[...id]">,
+) {
+  const unauthorized = await requireSession();
+  if (unauthorized) return unauthorized;
+
+  try {
+    const id = decodeNoteId((await params).id);
+    return NextResponse.json(
+      await togglePinnedNote(id, await readJson(request)),
+    );
+  } catch (error) {
+    return writeErrorResponse(error);
+  }
+}
 
 /** Update a note. Body: { title, tags, content, message, sha }. */
 export async function PUT(
